@@ -1,0 +1,8 @@
+{
+  "name": "Smart Customer Complaint & Resolution Management System",
+  "description": "Enterprise customer complaint resolution platform with SLA monitoring, email-to-ticket, AI classification, and CSAT analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
