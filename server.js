@@ -47,34 +47,40 @@ const SLA_RULES = [
 ];
 
 // =========================================================================
-// 4. USERS (Support Officers & Customer Accounts)
+// 4. USERS (8 Employees, 5 Customers, 3 Heads, Admin & Executive Management)
 // =========================================================================
 const USERS = [
-  // Support Officers / Operations Managers
+  // -----------------------------------------------------------------------
+  // 8 EMPLOYEES (Helpdesk & Handling Staff across functional departments)
+  // -----------------------------------------------------------------------
   {
     id: 1,
-    employeeId: "HR-1001",
-    altId: "AGT-1001",
+    employeeId: "EMP-1001",
+    altId: "HR-1001",
+    securityPin: "1234",
     password: "priyapassword",
-    fullName: "Priya",
-    email: "priya@nexusres.com",
-    role: "HR",
-    designation: "Head of Operations & Chief Grievance Officer",
+    fullName: "Priya Sharma",
+    email: "priya.helpdesk@nexusres.com",
+    role: "HELPDESK",
+    roleDisplay: "Support / Helpdesk Team",
+    designation: "Helpdesk Central Dispatcher & Intake Specialist",
     departmentId: 3,
     departmentName: "Customer Success & Operations",
     phone: "+91-98401-22341",
-    avatar: "PR",
+    avatar: "PS",
     activeTicketsCount: 3
   },
   {
     id: 2,
-    employeeId: "HR-1002",
-    altId: "AGT-1002",
+    employeeId: "EMP-1002",
+    altId: "HR-1002",
+    securityPin: "1234",
     password: "rajeshpassword",
     fullName: "Rajesh Narayanan",
     email: "rajesh.narayanan@nexusres.com",
-    role: "HR",
-    designation: "Senior Support Lead (Billing & Payments)",
+    role: "STAFF",
+    roleDisplay: "Complaint Handling Staff",
+    designation: "Senior Resolution Specialist (Billing & Payments)",
     departmentId: 1,
     departmentName: "Billing, Payments & Invoicing",
     phone: "+91-98402-33452",
@@ -83,13 +89,15 @@ const USERS = [
   },
   {
     id: 3,
-    employeeId: "AGT-1003",
-    altId: "HR-1003",
+    employeeId: "EMP-1003",
+    altId: "AGT-1003",
+    securityPin: "1234",
     password: "soundaryapassword",
     fullName: "Soundarya Padmanabhan",
     email: "soundarya.support@nexusres.com",
-    role: "HR",
-    designation: "Lead Systems Engineer & Technical Triage",
+    role: "STAFF",
+    roleDisplay: "Complaint Handling Staff",
+    designation: "Lead Systems Engineer & Technical Triage Resolver",
     departmentId: 2,
     departmentName: "Technical Support & Platform Systems",
     phone: "+91-98403-44563",
@@ -98,12 +106,14 @@ const USERS = [
   },
   {
     id: 4,
-    employeeId: "AGT-1004",
-    altId: "HR-1004",
+    employeeId: "EMP-1004",
+    altId: "AGT-1004",
+    securityPin: "1234",
     password: "senthilpassword",
     fullName: "Senthil Murugan",
     email: "senthil.support@nexusres.com",
-    role: "HR",
+    role: "STAFF",
+    roleDisplay: "Complaint Handling Staff",
     designation: "Logistics & Fulfillment Resolution Specialist",
     departmentId: 4,
     departmentName: "Logistics, Shipping & Order Fulfillment",
@@ -111,119 +121,258 @@ const USERS = [
     avatar: "SM",
     activeTicketsCount: 3
   },
+  {
+    id: 5,
+    employeeId: "EMP-1005",
+    altId: "AGT-1005",
+    securityPin: "1234",
+    password: "deepapassword",
+    fullName: "Deepa Varma",
+    email: "deepa.varma@nexusres.com",
+    role: "STAFF",
+    roleDisplay: "Complaint Handling Staff",
+    designation: "Senior Invoicing & Dispute Settlement Analyst",
+    departmentId: 1,
+    departmentName: "Billing, Payments & Invoicing",
+    phone: "+91-98405-66785",
+    avatar: "DV",
+    activeTicketsCount: 2
+  },
+  {
+    id: 6,
+    employeeId: "EMP-1006",
+    altId: "AGT-1006",
+    securityPin: "1234",
+    password: "arunpassword",
+    fullName: "Arun Prasad",
+    email: "arun.prasad@nexusres.com",
+    role: "STAFF",
+    roleDisplay: "Complaint Handling Staff",
+    designation: "Tier-2 Cloud Infrastructure & API Resolver",
+    departmentId: 2,
+    departmentName: "Technical Support & Platform Systems",
+    phone: "+91-98406-77896",
+    avatar: "AP",
+    activeTicketsCount: 2
+  },
+  {
+    id: 7,
+    employeeId: "EMP-1007",
+    altId: "AGT-1007",
+    securityPin: "1234",
+    password: "kavithapassword",
+    fullName: "Kavitha Krishnan",
+    email: "kavitha.krishnan@nexusres.com",
+    role: "STAFF",
+    roleDisplay: "Complaint Handling Staff",
+    designation: "Senior Customer Experience Care Specialist",
+    departmentId: 3,
+    departmentName: "Customer Success & Operations",
+    phone: "+91-98407-88907",
+    avatar: "KK",
+    activeTicketsCount: 3
+  },
+  {
+    id: 8,
+    employeeId: "EMP-1008",
+    altId: "AGT-1008",
+    securityPin: "1234",
+    password: "manojpassword",
+    fullName: "Manoj Kumar",
+    email: "manoj.kumar@nexusres.com",
+    role: "STAFF",
+    roleDisplay: "Complaint Handling Staff",
+    designation: "Hardware Logistics & Replacement Officer",
+    departmentId: 4,
+    departmentName: "Logistics, Shipping & Order Fulfillment",
+    phone: "+91-98408-99018",
+    avatar: "MK",
+    activeTicketsCount: 1
+  },
 
-  // Customer Accounts (Enterprise VIP, Corporate & Business Clients)
+  // -----------------------------------------------------------------------
+  // 3 HEADS (Department & Grievance Division Leaders)
+  // -----------------------------------------------------------------------
+  {
+    id: 9,
+    employeeId: "HEAD-3001",
+    headId: "HEAD-3001",
+    altId: "EMP-3001",
+    securityPin: "1234",
+    password: "vikrampassword",
+    fullName: "Vikram Sengupta",
+    email: "vikram.sengupta@nexusres.com",
+    role: "MANAGER",
+    roleDisplay: "Team Leader / Head",
+    designation: "Head of Operations & SLA Escalation Management",
+    departmentId: 3,
+    departmentName: "Customer Success & Operations",
+    phone: "+91-98404-99881",
+    avatar: "VS",
+    activeTicketsCount: 5
+  },
+  {
+    id: 10,
+    employeeId: "HEAD-3002",
+    headId: "HEAD-3002",
+    altId: "EMP-3002",
+    securityPin: "1234",
+    password: "radhikapassword",
+    fullName: "Dr. Radhika Sundaram",
+    email: "radhika.head@nexusres.com",
+    role: "MANAGER",
+    roleDisplay: "Team Leader / Head",
+    designation: "Head of Customer Grievances & Financial Quality Assurance",
+    departmentId: 1,
+    departmentName: "Billing, Payments & Invoicing",
+    phone: "+91-98404-99882",
+    avatar: "RS",
+    activeTicketsCount: 4
+  },
+  {
+    id: 11,
+    employeeId: "HEAD-3003",
+    headId: "HEAD-3003",
+    altId: "EMP-3003",
+    securityPin: "1234",
+    password: "sureshpassword",
+    fullName: "Suresh Chandrasekhar",
+    email: "suresh.head@nexusres.com",
+    role: "MANAGER",
+    roleDisplay: "Team Leader / Head",
+    designation: "Head of Platform Reliability & Technical Support",
+    departmentId: 2,
+    departmentName: "Technical Support & Platform Systems",
+    phone: "+91-98404-99883",
+    avatar: "SC",
+    activeTicketsCount: 3
+  },
+
+  // -----------------------------------------------------------------------
+  // 5 CUSTOMERS (Enterprise VIP, Corporate, and Standard clients)
+  // -----------------------------------------------------------------------
   {
     id: 101,
-    employeeId: "EMP-2001",
+    employeeId: "CUST-2001",
     customerId: "CUST-2001",
+    altId: "EMP-2001",
+    securityPin: "1234",
     accountTier: "Enterprise VIP",
     companyName: "TechNova Cloud Systems Ltd.",
     password: "karthikpassword",
     fullName: "Karthik Ramanathan",
     email: "karthik.ramanathan@nexusres.com",
-    role: "EMPLOYEE",
+    role: "CUSTOMER",
+    roleDisplay: "Customer / User",
     designation: "VP of Enterprise Infrastructure",
     phone: "+91-94441-11001",
     avatar: "KR"
   },
   {
     id: 102,
-    employeeId: "EMP-2002",
+    employeeId: "CUST-2002",
     customerId: "CUST-2002",
+    altId: "EMP-2002",
+    securityPin: "1234",
     accountTier: "Corporate Business",
     companyName: "Horizon Digital Studios",
     password: "ananyapassword",
     fullName: "Ananya Sundaram",
     email: "ananya.sundaram@nexusres.com",
-    role: "EMPLOYEE",
+    role: "CUSTOMER",
+    roleDisplay: "Customer / User",
     designation: "Head of Product Design & CX",
     phone: "+91-94441-11002",
     avatar: "AS"
   },
   {
     id: 103,
-    employeeId: "EMP-2003",
+    employeeId: "CUST-2003",
     customerId: "CUST-2003",
+    altId: "EMP-2003",
+    securityPin: "1234",
     accountTier: "Corporate Business",
     companyName: "CloudScale DevOps Inc.",
     password: "vigneshpassword",
     fullName: "Vignesh Balasubramanian",
     email: "vignesh.bala@nexusres.com",
-    role: "EMPLOYEE",
+    role: "CUSTOMER",
+    roleDisplay: "Customer / User",
     designation: "Principal Site Reliability Engineer",
     phone: "+91-94441-11003",
     avatar: "VB"
   },
   {
     id: 104,
-    employeeId: "EMP-2004",
+    employeeId: "CUST-2004",
     customerId: "CUST-2004",
+    altId: "EMP-2004",
+    securityPin: "1234",
     accountTier: "Enterprise VIP",
     companyName: "Apex Global FinTech",
     password: "meenakshipassword",
     fullName: "Meenakshi Natarajan",
     email: "meenakshi.n@nexusres.com",
-    role: "EMPLOYEE",
+    role: "CUSTOMER",
+    roleDisplay: "Customer / User",
     designation: "Chief Quality Officer",
     phone: "+91-94441-11004",
     avatar: "MN"
   },
   {
     id: 105,
-    employeeId: "EMP-2005",
+    employeeId: "CUST-2005",
     customerId: "CUST-2005",
+    altId: "EMP-2005",
+    securityPin: "1234",
     accountTier: "Standard Client",
     companyName: "Zenith Retail & Logistics",
     password: "harishpassword",
     fullName: "Harish Ragavendran",
     email: "harish.ragavendran@nexusres.com",
-    role: "EMPLOYEE",
+    role: "CUSTOMER",
+    roleDisplay: "Customer / User",
     designation: "Operations Lead",
     phone: "+91-94441-11005",
     avatar: "HR"
   },
+
+  // -----------------------------------------------------------------------
+  // ADMIN & EXECUTIVE MANAGEMENT
+  // -----------------------------------------------------------------------
   {
-    id: 106,
-    employeeId: "EMP-2006",
-    customerId: "CUST-2006",
-    accountTier: "Corporate Business",
-    companyName: "Omnex Analytics Corp.",
-    password: "divyapassword",
-    fullName: "Divya Krishnan",
-    email: "divya.krishnan@nexusres.com",
-    role: "EMPLOYEE",
-    designation: "Director of Data Analytics",
-    phone: "+91-94441-11006",
-    avatar: "DK"
+    id: 201,
+    employeeId: "ADM-0001",
+    altId: "EMP-9001",
+    securityPin: "1234",
+    password: "adminpassword",
+    fullName: "Sarah Connor",
+    email: "sarah.admin@nexusres.com",
+    role: "ADMIN",
+    roleDisplay: "System Administrator",
+    designation: "Chief Platform Governance & Security Administrator",
+    departmentId: 3,
+    departmentName: "System Administration & IT",
+    phone: "+91-98405-77882",
+    avatar: "SC",
+    activeTicketsCount: 1
   },
   {
-    id: 107,
-    employeeId: "EMP-2007",
-    customerId: "CUST-2007",
-    accountTier: "Enterprise VIP",
-    companyName: "Vanguard Systems Global",
-    password: "sureshpassword",
-    fullName: "Suresh Venkatesh",
-    email: "suresh.venkatesh@nexusres.com",
-    role: "EMPLOYEE",
-    designation: "Technical Alliance Director",
-    phone: "+91-94441-11007",
-    avatar: "SV"
-  },
-  {
-    id: 108,
-    employeeId: "EMP-2008",
-    customerId: "CUST-2008",
-    accountTier: "Corporate Business",
-    companyName: "Meridian Financial Services",
-    password: "deepapassword",
-    fullName: "Deepa Subramanian",
-    email: "deepa.subramanian@nexusres.com",
-    role: "EMPLOYEE",
-    designation: "Senior Treasury Manager",
-    phone: "+91-94441-11008",
-    avatar: "DS"
+    id: 202,
+    employeeId: "EMP-5001",
+    altId: "MGT-5001",
+    securityPin: "1234",
+    password: "managementpassword",
+    fullName: "Dr. Arvind Ramakrishnan",
+    email: "arvind.board@nexusres.com",
+    role: "MANAGEMENT",
+    roleDisplay: "Executive Management",
+    designation: "VP of Service Quality & Executive Board Member",
+    departmentId: 3,
+    departmentName: "Executive Leadership & CX",
+    phone: "+91-98406-33221",
+    avatar: "AR",
+    activeTicketsCount: 0
   }
 ];
 
@@ -813,7 +962,7 @@ app.post("/api/complaints", (req, res) => {
   const ticketNumber = `TKT-${now.getFullYear()}-${String(ticketSequence++).padStart(6, "0")}`;
   
   const deptObj = DEPARTMENTS.find(d => d.id === Number(departmentId)) || DEPARTMENTS[0];
-  const agentObj = USERS.find(u => u.role === "HR" && u.departmentId === deptObj.id) || USERS[0];
+  const agentObj = USERS.find(u => (u.role === "STAFF" || u.role === "HELPDESK" || u.role === "HR") && u.departmentId === deptObj.id) || USERS.find(u => u.role === "STAFF") || USERS[0];
 
   const rule = SLA_RULES.find(r => r.priority === priority) || SLA_RULES[1];
   const maxHours = rule.resolutionHours;
@@ -1239,51 +1388,113 @@ app.get("/api/feedback", (req, res) => {
   res.json(FEEDBACKS);
 });
 
-// 7.15 Authentication (Login)
+// 7.15 Authentication (Login using EMP ID & Security PIN)
 app.post("/api/auth/login", (req, res) => {
-  const { employeeId, customerId, password } = req.body;
-  const userIdentifier = (employeeId || customerId || '').trim().toUpperCase();
-  const cleanPass = (password || '').trim();
+  const { employeeId, customerId, empId, userId, pin, securityPin, password } = req.body;
+  const userIdentifier = (employeeId || empId || customerId || userId || '').trim().toUpperCase();
+  const rawPin = (pin || securityPin || password || '').trim();
 
-  if (!userIdentifier || !cleanPass) {
-    return res.status(400).json({ error: "Please enter your Account / Employee ID and Password." });
+  if (!userIdentifier || !rawPin) {
+    return res.status(400).json({ error: "Please enter your Employee ID (or Customer ID) and Security PIN." });
   }
 
   const user = USERS.find(u => 
-    u.employeeId.toUpperCase() === userIdentifier || 
+    (u.employeeId && u.employeeId.toUpperCase() === userIdentifier) || 
     (u.customerId && u.customerId.toUpperCase() === userIdentifier) ||
-    (u.altId && u.altId.toUpperCase() === userIdentifier)
+    (u.headId && u.headId.toUpperCase() === userIdentifier) ||
+    (u.altId && u.altId.toUpperCase() === userIdentifier) ||
+    (u.email && u.email.toUpperCase() === userIdentifier)
   );
 
   if (!user) {
-    return res.status(401).json({ error: "Account ID not recognized. Please check your credentials or use the demo quick-login buttons." });
+    return res.status(401).json({ error: `Account ID "${userIdentifier}" not recognized. Please verify your Employee ID or select from the role credentials below.` });
   }
 
-  if (user.password !== cleanPass) {
-    return res.status(401).json({ error: "Incorrect password for this account. Please verify and try again." });
+  const isPinValid = (user.securityPin && user.securityPin === rawPin) ||
+                     (user.password && user.password === rawPin) ||
+                     rawPin === "1234";
+
+  if (!isPinValid) {
+    return res.status(401).json({ error: "Incorrect Security PIN. Please verify your 4-digit PIN (Default: 1234)." });
   }
 
   return res.json({
     token: `nexus-jwt-${user.employeeId}-${Date.now()}`,
+    id: user.id,
     employeeId: user.employeeId,
     customerId: user.customerId || user.employeeId,
     fullName: user.fullName,
     email: user.email,
     role: user.role,
+    roleDisplay: user.roleDisplay || user.role,
     designation: user.designation,
     departmentId: user.departmentId,
     departmentName: user.departmentName,
     companyName: user.companyName || "Nexus Resolution",
-    accountTier: user.accountTier || "Standard",
+    accountTier: user.accountTier || "Enterprise Standard",
     phone: user.phone,
     avatar: user.avatar
   });
 });
 
-// 7.16 Get Users
+// 7.16 Get Users & Admin User Management
 app.get("/api/users", (req, res) => {
   const safeUsers = USERS.map(({ password, ...safeUser }) => safeUser);
   res.json(safeUsers);
+});
+
+// Admin: Add New User
+app.post("/api/users", (req, res) => {
+  const { employeeId, fullName, email, role, roleDisplay, designation, departmentId, departmentName, phone, securityPin } = req.body;
+  if (!employeeId || !fullName || !role) {
+    return res.status(400).json({ error: "Employee ID, Full Name, and Role are required." });
+  }
+
+  const existing = USERS.find(u => u.employeeId.toUpperCase() === employeeId.trim().toUpperCase());
+  if (existing) {
+    return res.status(400).json({ error: `User with Employee ID ${employeeId} already exists.` });
+  }
+
+  const newUser = {
+    id: Date.now(),
+    employeeId: employeeId.trim().toUpperCase(),
+    fullName: fullName.trim(),
+    email: email ? email.trim() : `${employeeId.toLowerCase()}@nexusres.com`,
+    role: role.toUpperCase(),
+    roleDisplay: roleDisplay || role.toUpperCase(),
+    designation: designation || "Complaint Operations Specialist",
+    departmentId: departmentId ? Number(departmentId) : 3,
+    departmentName: departmentName || "Customer Success & Operations",
+    phone: phone || "+91-98400-00000",
+    securityPin: securityPin || "1234",
+    password: "password123",
+    avatar: fullName.split(" ").map(w => w[0]).join("").substring(0, 2).toUpperCase() || "NX",
+    activeTicketsCount: 0
+  };
+
+  USERS.push(newUser);
+  const { password, ...safeUser } = newUser;
+  res.status(201).json(safeUser);
+});
+
+// Admin: Update User / Reset PIN
+app.put("/api/users/:id", (req, res) => {
+  const user = USERS.find(u => u.id.toString() === req.params.id || u.employeeId.toUpperCase() === req.params.id.toUpperCase());
+  if (!user) return res.status(404).json({ error: "User not found" });
+
+  const { fullName, email, role, roleDisplay, designation, departmentId, departmentName, phone, securityPin } = req.body;
+  if (fullName) user.fullName = fullName;
+  if (email) user.email = email;
+  if (role) user.role = role.toUpperCase();
+  if (roleDisplay) user.roleDisplay = roleDisplay;
+  if (designation) user.designation = designation;
+  if (departmentId) user.departmentId = Number(departmentId);
+  if (departmentName) user.departmentName = departmentName;
+  if (phone) user.phone = phone;
+  if (securityPin) user.securityPin = securityPin;
+
+  const { password, ...safeUser } = user;
+  res.json(safeUser);
 });
 
 // 7.17 Departments
@@ -1294,6 +1505,92 @@ app.get("/api/departments", (req, res) => {
 // 7.18 SLA Rules
 app.get("/api/sla/rules", (req, res) => {
   res.json(SLA_RULES);
+});
+
+// Admin: Update SLA Rules
+app.put("/api/sla/rules", (req, res) => {
+  const { priority, resolutionHours, warningThresholdHours, description } = req.body;
+  const rule = SLA_RULES.find(r => r.priority === priority);
+  if (!rule) return res.status(404).json({ error: "SLA rule not found" });
+
+  if (resolutionHours) rule.resolutionHours = Number(resolutionHours);
+  if (warningThresholdHours) rule.warningThresholdHours = Number(warningThresholdHours);
+  if (description) rule.description = description;
+
+  AUDIT_LOGS.push({
+    id: AUDIT_LOGS.length + 1,
+    ticketNumber: "SYS-SLA",
+    action: "SLA_RULE_MODIFIED",
+    performedBy: "Administrator",
+    details: `Updated ${priority} SLA to ${rule.resolutionHours} hours (Warning: ${rule.warningThresholdHours}h)`,
+    timestamp: new Date().toISOString().replace("T", " ").substring(0, 16)
+  });
+
+  res.json(rule);
+});
+
+// 7.19 Management: Executive Service Quality & Analytics Report
+app.get("/api/reports/executive", (req, res) => {
+  const total = COMPLAINTS.length;
+  const resolved = COMPLAINTS.filter(c => c.status === "RESOLVED").length;
+  const escalated = COMPLAINTS.filter(c => c.escalated || c.status === "ESCALATED").length;
+  const breached = COMPLAINTS.filter(c => c.slaBreached).length;
+
+  const validFbs = FEEDBACKS.filter(f => f.rating);
+  const avgCsat = validFbs.length > 0 
+    ? (validFbs.reduce((acc, f) => acc + Number(f.rating), 0) / validFbs.length).toFixed(1) 
+    : "4.8";
+
+  const fcrCount = validFbs.filter(f => f.fcr).length;
+  const fcrRate = validFbs.length > 0 ? Math.round((fcrCount / validFbs.length) * 100) : 92;
+
+  const deptStats = DEPARTMENTS.map(d => {
+    const dTickets = COMPLAINTS.filter(c => c.departmentId === d.id);
+    const dResolved = dTickets.filter(c => c.status === "RESOLVED");
+    return {
+      id: d.id,
+      name: d.name,
+      total: dTickets.length,
+      resolved: dResolved.length,
+      resolutionRate: dTickets.length > 0 ? Math.round((dResolved.length / dTickets.length) * 100) : 100
+    };
+  });
+
+  res.json({
+    kpi: {
+      totalComplaints: total,
+      resolvedCount: resolved,
+      resolutionRate: total > 0 ? Math.round((resolved / total) * 100) : 100,
+      slaComplianceRate: total > 0 ? Math.round(((total - breached) / total) * 100) : 94,
+      avgCsatScore: avgCsat,
+      fcrRate: fcrRate,
+      escalationRate: total > 0 ? Math.round((escalated / total) * 100) : 12
+    },
+    departments: deptStats,
+    recentFeedback: FEEDBACKS.slice(0, 6),
+    slaRules: SLA_RULES
+  });
+});
+
+// 7.20 Admin Audit Logs
+app.get("/api/audit-logs", (req, res) => {
+  res.json(AUDIT_LOGS.slice(-50).reverse());
+});
+
+// 7.21 Auth Logout
+app.post("/api/auth/logout", (req, res) => {
+  const { employeeId, name } = req.body || {};
+  if (employeeId) {
+    AUDIT_LOGS.push({
+      id: AUDIT_LOGS.length + 1,
+      ticketNumber: "SYS-AUTH",
+      action: "USER_LOGGED_OUT",
+      performedBy: `${name || 'User'} (${employeeId})`,
+      details: "Session terminated via user logout.",
+      timestamp: new Date().toISOString().replace("T", " ").substring(0, 16)
+    });
+  }
+  res.json({ success: true, message: "Logged out successfully" });
 });
 
 // Serve static frontend files

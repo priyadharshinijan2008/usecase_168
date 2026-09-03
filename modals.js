@@ -14,7 +14,7 @@ function AssignTicketModal({ ticket, departments, users, currentUser, onClose, o
         if (window.lucide) window.lucide.createIcons();
     }, []);
 
-    const supportAgents = users.filter(u => u.role === 'HR');
+    const supportAgents = users.filter(u => u.role === 'STAFF' || u.role === 'HELPDESK' || u.role === 'MANAGER' || u.role === 'HR');
 
     const handleAssign = async () => {
         setIsSubmitting(true);

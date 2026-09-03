@@ -20,15 +20,6 @@ async function apiCall(endpoint, options = {}) {
     }
 }
 
-// Preset Quick-Login Users (Support Team & Customers)
-const QUICK_USERS = [
-    { id: 1, employeeId: 'HR-1001', role: 'HR', name: 'Priya', title: 'Chief Grievance Officer', dept: 'Customer Success & Ops' },
-    { id: 2, employeeId: 'HR-1002', role: 'HR', name: 'Rajesh Narayanan', title: 'Senior Billing Lead', dept: 'Billing & Invoicing' },
-    { id: 101, employeeId: 'EMP-2001', role: 'EMPLOYEE', name: 'Karthik Ramanathan', title: 'VP Infrastructure (TechNova)', dept: 'Enterprise VIP' },
-    { id: 102, employeeId: 'EMP-2002', role: 'EMPLOYEE', name: 'Ananya Sundaram', title: 'Head of CX (Horizon)', dept: 'Corporate Client' },
-    { id: 103, employeeId: 'EMP-2003', role: 'EMPLOYEE', name: 'Vignesh Bala', title: 'SRE Lead (CloudScale)', dept: 'Corporate Client' }
-];
-
 // Helper to get channel meta
 const CHANNEL_META = {
     EMAIL: { label: 'Email Inbound', icon: 'mail', bg: 'bg-indigo-100', text: 'text-indigo-800', border: 'border-indigo-200' },
@@ -60,16 +51,7 @@ function App() {
     const [currentUser, setCurrentUser] = useState(() => {
         try {
             const saved = localStorage.getItem('nexus_auth_user');
-            return saved ? JSON.parse(saved) : {
-                id: 1,
-                employeeId: 'HR-1001',
-                fullName: 'Priya',
-                role: 'HR',
-                designation: 'Head of Operations & Chief Grievance Officer',
-                email: 'priya@nexusres.com',
-                departmentName: 'Customer Success & Operations',
-                avatar: 'PR'
-            };
+            return saved ? JSON.parse(saved) : null;
         } catch {
             return null;
         }
@@ -135,20 +117,52 @@ function App() {
             if (window.lucide) window.lucide.createIcons();
         }, 50);
         return () => clearTimeout(timeout);
-    }, [activeTab, sidebarOpen, complaints, selectedTicket, assignModalTicket, escalateModalTicket, feedbackModalTicket, actionModalTicket, adjustModalTicket, compensationModalTicket, downloadSlipTicket]);
+    }, [currentUser, activeTab, sidebarOpen, complaints, selectedTicket, assignModalTicket, escalateModalTicket, feedbackModalTicket, actionModalTicket, adjustModalTicket, compensationModalTicket, downloadSlipTicket]);
 
-    const handleSwitchUser = (u) => {
-        const fullUser = users.find(x => x.employeeId === u.employeeId) || {
-            ...u,
-            fullName: u.name,
-            email: `${u.name.toLowerCase().replace(' ', '.')}@nexusres.com`,
-            avatar: u.name.substring(0, 2).toUpperCase()
-        };
-        setCurrentUser(fullUser);
+    const handleLogin = async (employeeId, securityPin) => {
+        const userData = await apiCall('/auth/login', {
+            method: 'POST',
+            body: JSON.stringify({ employeeId, securityPin })
+        });
+        setCurrentUser(userData);
         try {
-            localStorage.setItem('nexus_auth_user', JSON.stringify(fullUser));
+            localStorage.setItem('nexus_auth_user', JSON.stringify(userData));
         } catch {}
-        showToast(`Switched active view to ${fullUser.fullName} (${fullUser.role === 'HR' ? 'Operations' : 'Customer'})`);
+
+        // Land on the most relevant view according to role
+        if (userData.role === 'CUSTOMER') {
+            setActiveTab('my-tickets');
+        } else if (userData.role === 'HELPDESK') {
+            setActiveTab('inbox');
+        } else if (userData.role === 'STAFF') {
+            setActiveTab('my-tickets');
+        } else if (userData.role === 'MANAGER') {
+            setActiveTab('dashboard');
+        } else if (userData.role === 'ADMIN') {
+            setActiveTab('admin');
+        } else if (userData.role === 'MANAGEMENT') {
+            setActiveTab('reports');
+        } else {
+            setActiveTab('dashboard');
+        }
+        showToast(`Welcome back, ${userData.fullName}! Logged in as ${userData.roleDisplay || userData.role}.`);
+        loadData();
+    };
+
+    const handleLogout = async () => {
+        try {
+            if (currentUser?.employeeId) {
+                await apiCall('/auth/logout', {
+                    method: 'POST',
+                    body: JSON.stringify({ employeeId: currentUser.employeeId, name: currentUser.fullName })
+                });
+            }
+        } catch (e) {
+            console.warn('Logout log error:', e);
+        }
+        localStorage.removeItem('nexus_auth_user');
+        setCurrentUser(null);
+        showToast('You have been logged out securely.', 'info');
     };
 
     // Filtered complaints for search and channel
@@ -171,6 +185,60 @@ function App() {
         }
         return true;
     });
+
+    // If not authenticated, render Login Screen
+    if (!currentUser) {
+        return (
+            <div className="min-h-screen bg-slate-100 font-sans">
+                <LoginView onLogin={handleLogin} />
+                {toast && (
+                    <div className={`fixed bottom-5 right-5 z-50 px-4 py-3 rounded-xl shadow-lg text-xs font-bold flex items-center gap-2 border ${
+                        toast.type === 'info' ? 'bg-slate-900 text-white border-slate-800' :
+                        toast.type === 'error' ? 'bg-rose-700 text-white border-rose-800' :
+                        'bg-emerald-700 text-white border-emerald-800'
+                    }`}>
+                        <i data-lucide={toast.type === 'error' ? 'alert-circle' : 'check-circle'} className="w-4 h-4"></i>
+                        <span>{toast.msg}</span>
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    // Role-specific variables
+    const userRole = currentUser.role || 'STAFF';
+    const isCustomer = userRole === 'CUSTOMER';
+    const isHelpdesk = userRole === 'HELPDESK';
+    const isStaff = userRole === 'STAFF';
+    const isManager = userRole === 'MANAGER';
+    const isAdmin = userRole === 'ADMIN';
+    const isManagement = userRole === 'MANAGEMENT';
+
+    // Filter tickets assigned or filed by current user
+    const userSpecificTickets = complaints.filter(c => {
+        if (isCustomer) {
+            return (
+                c.employeeId === currentUser.employeeId ||
+                c.customerId === currentUser.customerId ||
+                (c.customerName && c.customerName.toLowerCase() === currentUser.fullName?.toLowerCase()) ||
+                (c.customerEmail && c.customerEmail.toLowerCase() === currentUser.email?.toLowerCase())
+            );
+        }
+        if (isStaff || isHelpdesk) {
+            return c.assignedAgentId === currentUser.id || c.assignedAgentName === currentUser.fullName;
+        }
+        return true;
+    });
+
+    const roleBadgeStyles = {
+        CUSTOMER: { bg: 'bg-blue-100', text: 'text-blue-800', border: 'border-blue-200', avatarBg: 'bg-blue-600' },
+        HELPDESK: { bg: 'bg-indigo-100', text: 'text-indigo-800', border: 'border-indigo-200', avatarBg: 'bg-indigo-600' },
+        STAFF: { bg: 'bg-emerald-100', text: 'text-emerald-800', border: 'border-emerald-200', avatarBg: 'bg-emerald-600' },
+        MANAGER: { bg: 'bg-amber-100', text: 'text-amber-800', border: 'border-amber-200', avatarBg: 'bg-amber-600' },
+        ADMIN: { bg: 'bg-rose-100', text: 'text-rose-800', border: 'border-rose-200', avatarBg: 'bg-rose-600' },
+        MANAGEMENT: { bg: 'bg-purple-100', text: 'text-purple-800', border: 'border-purple-200', avatarBg: 'bg-purple-600' }
+    };
+    const currentRoleStyle = roleBadgeStyles[userRole] || roleBadgeStyles.STAFF;
 
     return (
         <div className="flex flex-col h-screen bg-slate-50 text-slate-900 font-sans">
@@ -202,113 +270,319 @@ function App() {
                     </div>
                 </div>
 
-                {/* Central Channel Tracker Badge */}
-                <div className="hidden lg:flex items-center gap-1.5 px-3 py-1 bg-slate-100 rounded-full text-xs font-semibold text-slate-700">
+                {/* Central Status Indicator */}
+                <div className="hidden lg:flex items-center gap-2 px-3 py-1 bg-slate-100 rounded-full text-xs font-semibold text-slate-700">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span>7 Ingestion Channels Active</span>
-                    <span className="text-slate-400">|</span>
-                    <span className="text-blue-700 font-bold">{stats ? `${stats.totalTickets} Complaints Tracked` : 'Live'}</span>
+                    <span>7 Omnichannel Ingestion Streams</span>
+                    <span className="text-slate-400">•</span>
+                    <span className="text-blue-700 font-bold">{complaints.length} Total Complaints</span>
                 </div>
 
-                {/* Quick Persona Switcher & Current User */}
-                <div className="flex items-center gap-2">
-                    <div className="hidden md:flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs">
-                        <span className="text-[10px] font-bold text-slate-400 px-2 uppercase">Switch Persona:</span>
-                        {QUICK_USERS.slice(0, 3).map(u => (
-                            <button
-                                key={u.id}
-                                onClick={() => handleSwitchUser(u)}
-                                className={`px-2.5 py-1 rounded-lg font-medium text-xs transition ${
-                                    currentUser && currentUser.employeeId === u.employeeId
-                                        ? 'bg-white text-blue-700 shadow-xs font-bold'
-                                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-                                }`}
-                            >
-                                {u.name.split(' ')[0]} ({u.role === 'HR' ? 'Ops' : 'Client'})
-                            </button>
-                        ))}
-                    </div>
-
-                    <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
-                        <div className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center font-bold text-xs">
-                            {currentUser ? currentUser.fullName.substring(0, 2).toUpperCase() : 'OP'}
+                {/* Logged-in User Profile & Logout Button */}
+                <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2.5 pl-2 border-l border-slate-200">
+                        <div className={`w-8 h-8 rounded-lg text-white flex items-center justify-center font-bold text-xs shadow-xs ${currentRoleStyle.avatarBg}`}>
+                            {currentUser.avatar || currentUser.fullName?.substring(0, 2).toUpperCase() || 'NX'}
                         </div>
                         <div className="hidden sm:block text-left">
-                            <p className="text-xs font-bold text-slate-900 leading-tight">{currentUser?.fullName}</p>
-                            <p className="text-[10px] text-slate-500">{currentUser?.role === 'HR' ? 'Operations Staff' : 'Customer Account'}</p>
+                            <div className="flex items-center gap-1.5">
+                                <p className="text-xs font-bold text-slate-900 leading-tight">{currentUser.fullName}</p>
+                                <span className={`text-[9px] font-black px-1.5 py-0.2 rounded uppercase border ${currentRoleStyle.bg} ${currentRoleStyle.text} ${currentRoleStyle.border}`}>
+                                    {currentUser.roleDisplay || currentUser.role}
+                                </span>
+                            </div>
+                            <p className="text-[10px] text-slate-500 truncate max-w-[210px]">
+                                {currentUser.employeeId} • {currentUser.companyName || currentUser.departmentName || currentUser.designation}
+                            </p>
                         </div>
                     </div>
+
+                    {/* Prominent Log Out Button */}
+                    <button
+                        id="btn-logout"
+                        onClick={handleLogout}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition shadow-2xs active:scale-95"
+                        title="Log out of session"
+                    >
+                        <i data-lucide="log-out" className="w-3.5 h-3.5"></i>
+                        <span className="hidden sm:inline">Log Out</span>
+                    </button>
                 </div>
             </header>
 
             {/* Main Application Container with Sidebar */}
             <div className="flex flex-1 overflow-hidden">
-                {/* Collapsible Left Navigation */}
+                {/* Collapsible Left Navigation (Role-Tailored) */}
                 <aside className={`${sidebarOpen ? 'w-64' : 'w-16'} bg-white border-r border-slate-200 flex flex-col transition-all duration-200 shrink-0 select-none z-20`}>
                     <div className="p-3 flex-1 overflow-y-auto custom-scrollbar space-y-1">
-                        <NavButton
-                            active={activeTab === 'dashboard'}
-                            onClick={() => setActiveTab('dashboard')}
-                            icon="layout-dashboard"
-                            label="Operations Dashboard"
-                            sidebarOpen={sidebarOpen}
-                        />
-                        <NavButton
-                            active={activeTab === 'inbox'}
-                            onClick={() => setActiveTab('inbox')}
-                            icon="inbox"
-                            label="Omnichannel Inbox"
-                            badge={complaints.length}
-                            sidebarOpen={sidebarOpen}
-                        />
-                        <NavButton
-                            active={activeTab === 'register'}
-                            onClick={() => setActiveTab('register')}
-                            icon="plus-circle"
-                            label="Register Complaint"
-                            highlight
-                            sidebarOpen={sidebarOpen}
-                        />
-                        <NavButton
-                            active={activeTab === 'sla'}
-                            onClick={() => setActiveTab('sla')}
-                            icon="clock"
-                            label="SLA Monitor"
-                            badge={stats?.slaBreachedTickets > 0 ? `${stats.slaBreachedTickets} Breached` : null}
-                            badgeColor="rose"
-                            sidebarOpen={sidebarOpen}
-                        />
-                        <NavButton
-                            active={activeTab === 'escalations'}
-                            onClick={() => setActiveTab('escalations')}
-                            icon="alert-octagon"
-                            label="Escalation Workflows"
-                            badge={stats?.escalatedTickets}
-                            badgeColor="amber"
-                            sidebarOpen={sidebarOpen}
-                        />
-                        <NavButton
-                            active={activeTab === 'feedback'}
-                            onClick={() => setActiveTab('feedback')}
-                            icon="star"
-                            label="Customer Feedback (CSAT)"
-                            badge={stats?.avgCsat ? `${stats.avgCsat} ★` : null}
-                            sidebarOpen={sidebarOpen}
-                        />
-                        <NavButton
-                            active={activeTab === 'channels'}
-                            onClick={() => setActiveTab('channels')}
-                            icon="radio"
-                            label="Channel Matrix"
-                            sidebarOpen={sidebarOpen}
-                        />
-                        <NavButton
-                            active={activeTab === 'my-tickets'}
-                            onClick={() => setActiveTab('my-tickets')}
-                            icon="user-check"
-                            label={currentUser?.role === 'HR' ? 'Assigned to Me' : 'My Filed Tickets'}
-                            sidebarOpen={sidebarOpen}
-                        />
+                        {/* CUSTOMER Navigation */}
+                        {isCustomer && (
+                            <>
+                                <NavButton
+                                    active={activeTab === 'my-tickets'}
+                                    onClick={() => setActiveTab('my-tickets')}
+                                    icon="inbox"
+                                    label="My Complaints"
+                                    badge={userSpecificTickets.length}
+                                    sidebarOpen={sidebarOpen}
+                                />
+                                <NavButton
+                                    active={activeTab === 'register'}
+                                    onClick={() => setActiveTab('register')}
+                                    icon="plus-circle"
+                                    label="Register Complaint"
+                                    highlight
+                                    sidebarOpen={sidebarOpen}
+                                />
+                                <NavButton
+                                    active={activeTab === 'feedback'}
+                                    onClick={() => setActiveTab('feedback')}
+                                    icon="star"
+                                    label="Provide Feedback (CSAT)"
+                                    sidebarOpen={sidebarOpen}
+                                />
+                                <NavButton
+                                    active={activeTab === 'sla'}
+                                    onClick={() => setActiveTab('sla')}
+                                    icon="clock"
+                                    label="Resolution SLA Commitments"
+                                    sidebarOpen={sidebarOpen}
+                                />
+                            </>
+                        )}
+
+                        {/* HELPDESK Navigation */}
+                        {isHelpdesk && (
+                            <>
+                                <NavButton
+                                    active={activeTab === 'dashboard'}
+                                    onClick={() => setActiveTab('dashboard')}
+                                    icon="layout-dashboard"
+                                    label="Operations Dashboard"
+                                    sidebarOpen={sidebarOpen}
+                                />
+                                <NavButton
+                                    active={activeTab === 'inbox'}
+                                    onClick={() => setActiveTab('inbox')}
+                                    icon="inbox"
+                                    label="Omnichannel Intake Inbox"
+                                    badge={complaints.length}
+                                    sidebarOpen={sidebarOpen}
+                                />
+                                <NavButton
+                                    active={activeTab === 'register'}
+                                    onClick={() => setActiveTab('register')}
+                                    icon="plus-circle"
+                                    label="Intake / Log Complaint"
+                                    highlight
+                                    sidebarOpen={sidebarOpen}
+                                />
+                                <NavButton
+                                    active={activeTab === 'channels'}
+                                    onClick={() => setActiveTab('channels')}
+                                    icon="radio"
+                                    label="Channel Matrix"
+                                    sidebarOpen={sidebarOpen}
+                                />
+                                <NavButton
+                                    active={activeTab === 'sla'}
+                                    onClick={() => setActiveTab('sla')}
+                                    icon="clock"
+                                    label="SLA Monitor"
+                                    sidebarOpen={sidebarOpen}
+                                />
+                            </>
+                        )}
+
+                        {/* STAFF Navigation */}
+                        {isStaff && (
+                            <>
+                                <NavButton
+                                    active={activeTab === 'my-tickets'}
+                                    onClick={() => setActiveTab('my-tickets')}
+                                    icon="user-check"
+                                    label="My Assigned Queue"
+                                    badge={userSpecificTickets.length}
+                                    highlight
+                                    sidebarOpen={sidebarOpen}
+                                />
+                                <NavButton
+                                    active={activeTab === 'inbox'}
+                                    onClick={() => setActiveTab('inbox')}
+                                    icon="inbox"
+                                    label="Active Resolution Queue"
+                                    sidebarOpen={sidebarOpen}
+                                />
+                                <NavButton
+                                    active={activeTab === 'sla'}
+                                    onClick={() => setActiveTab('sla')}
+                                    icon="clock"
+                                    label="SLA Timers & Deadlines"
+                                    badge={stats?.slaBreachedTickets > 0 ? `${stats.slaBreachedTickets} Breached` : null}
+                                    badgeColor="rose"
+                                    sidebarOpen={sidebarOpen}
+                                />
+                                <NavButton
+                                    active={activeTab === 'feedback'}
+                                    onClick={() => setActiveTab('feedback')}
+                                    icon="star"
+                                    label="Customer Feedback"
+                                    sidebarOpen={sidebarOpen}
+                                />
+                            </>
+                        )}
+
+                        {/* MANAGER Navigation */}
+                        {isManager && (
+                            <>
+                                <NavButton
+                                    active={activeTab === 'dashboard'}
+                                    onClick={() => setActiveTab('dashboard')}
+                                    icon="layout-dashboard"
+                                    label="Operations Dashboard"
+                                    sidebarOpen={sidebarOpen}
+                                />
+                                <NavButton
+                                    active={activeTab === 'inbox'}
+                                    onClick={() => setActiveTab('inbox')}
+                                    icon="inbox"
+                                    label="Omnichannel Inbox"
+                                    badge={complaints.length}
+                                    sidebarOpen={sidebarOpen}
+                                />
+                                <NavButton
+                                    active={activeTab === 'sla'}
+                                    onClick={() => setActiveTab('sla')}
+                                    icon="clock"
+                                    label="SLA Oversight & Risks"
+                                    badge={stats?.slaBreachedTickets > 0 ? `${stats.slaBreachedTickets} Breached` : null}
+                                    badgeColor="rose"
+                                    sidebarOpen={sidebarOpen}
+                                />
+                                <NavButton
+                                    active={activeTab === 'escalations'}
+                                    onClick={() => setActiveTab('escalations')}
+                                    icon="alert-octagon"
+                                    label="Escalation Workflows"
+                                    badge={stats?.escalatedTickets}
+                                    badgeColor="amber"
+                                    sidebarOpen={sidebarOpen}
+                                />
+                                <NavButton
+                                    active={activeTab === 'feedback'}
+                                    onClick={() => setActiveTab('feedback')}
+                                    icon="star"
+                                    label="Customer Feedback (CSAT)"
+                                    sidebarOpen={sidebarOpen}
+                                />
+                                <NavButton
+                                    active={activeTab === 'reports'}
+                                    onClick={() => setActiveTab('reports')}
+                                    icon="bar-chart-3"
+                                    label="Executive Reports"
+                                    sidebarOpen={sidebarOpen}
+                                />
+                            </>
+                        )}
+
+                        {/* ADMIN Navigation */}
+                        {isAdmin && (
+                            <>
+                                <NavButton
+                                    active={activeTab === 'admin'}
+                                    onClick={() => setActiveTab('admin')}
+                                    icon="users"
+                                    label="User & PIN Governance"
+                                    highlight
+                                    sidebarOpen={sidebarOpen}
+                                />
+                                <NavButton
+                                    active={activeTab === 'inbox'}
+                                    onClick={() => setActiveTab('inbox')}
+                                    icon="inbox"
+                                    label="Omnichannel Inbox"
+                                    badge={complaints.length}
+                                    sidebarOpen={sidebarOpen}
+                                />
+                                <NavButton
+                                    active={activeTab === 'register'}
+                                    onClick={() => setActiveTab('register')}
+                                    icon="plus-circle"
+                                    label="Register Complaint"
+                                    sidebarOpen={sidebarOpen}
+                                />
+                                <NavButton
+                                    active={activeTab === 'sla'}
+                                    onClick={() => setActiveTab('sla')}
+                                    icon="clock"
+                                    label="SLA Rules & Targets"
+                                    sidebarOpen={sidebarOpen}
+                                />
+                                <NavButton
+                                    active={activeTab === 'escalations'}
+                                    onClick={() => setActiveTab('escalations')}
+                                    icon="alert-octagon"
+                                    label="Escalation Workflows"
+                                    sidebarOpen={sidebarOpen}
+                                />
+                                <NavButton
+                                    active={activeTab === 'reports'}
+                                    onClick={() => setActiveTab('reports')}
+                                    icon="bar-chart-3"
+                                    label="Executive Analytics"
+                                    sidebarOpen={sidebarOpen}
+                                />
+                            </>
+                        )}
+
+                        {/* MANAGEMENT Navigation */}
+                        {isManagement && (
+                            <>
+                                <NavButton
+                                    active={activeTab === 'reports'}
+                                    onClick={() => setActiveTab('reports')}
+                                    icon="bar-chart-3"
+                                    label="Executive Quality Scorecard"
+                                    highlight
+                                    sidebarOpen={sidebarOpen}
+                                />
+                                <NavButton
+                                    active={activeTab === 'dashboard'}
+                                    onClick={() => setActiveTab('dashboard')}
+                                    icon="layout-dashboard"
+                                    label="Operations Overview"
+                                    sidebarOpen={sidebarOpen}
+                                />
+                                <NavButton
+                                    active={activeTab === 'inbox'}
+                                    onClick={() => setActiveTab('inbox')}
+                                    icon="inbox"
+                                    label="Omnichannel Inbox"
+                                    sidebarOpen={sidebarOpen}
+                                />
+                                <NavButton
+                                    active={activeTab === 'sla'}
+                                    onClick={() => setActiveTab('sla')}
+                                    icon="clock"
+                                    label="SLA Compliance Matrix"
+                                    sidebarOpen={sidebarOpen}
+                                />
+                                <NavButton
+                                    active={activeTab === 'feedback'}
+                                    onClick={() => setActiveTab('feedback')}
+                                    icon="star"
+                                    label="Customer Satisfaction (CSAT)"
+                                    sidebarOpen={sidebarOpen}
+                                />
+                                <NavButton
+                                    active={activeTab === 'channels'}
+                                    onClick={() => setActiveTab('channels')}
+                                    icon="radio"
+                                    label="Channel Distribution"
+                                    sidebarOpen={sidebarOpen}
+                                />
+                            </>
+                        )}
                     </div>
 
                     {/* Sidebar Footer Live Status */}
@@ -328,6 +602,13 @@ function App() {
 
                 {/* Primary Content View Area */}
                 <main className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6">
+                    {/* Workflow Lifecycle Pipeline Banner */}
+                    <WorkflowBanner
+                        complaints={complaints}
+                        currentUserRole={currentUser.role}
+                        onNavigateTab={setActiveTab}
+                    />
+
                     {activeTab === 'dashboard' && (
                         <DashboardView
                             stats={stats}
@@ -368,9 +649,9 @@ function App() {
                                 showToast(`Complaint ${newTkt.ticketNumber} successfully registered across centralized channels.`);
                                 loadData();
                                 setSelectedTicket(newTkt);
-                                setActiveTab('inbox');
+                                setActiveTab(isCustomer ? 'my-tickets' : 'inbox');
                             }}
-                            onCancel={() => setActiveTab('inbox')}
+                            onCancel={() => setActiveTab(isCustomer ? 'my-tickets' : 'inbox')}
                         />
                     )}
 
@@ -415,11 +696,7 @@ function App() {
 
                     {activeTab === 'my-tickets' && (
                         <OmnichannelInboxView
-                            complaints={complaints.filter(c => 
-                                currentUser?.role === 'HR' 
-                                    ? c.assignedAgentId === currentUser.id 
-                                    : (c.employeeId === currentUser?.employeeId || c.customerId === currentUser?.customerId)
-                            )}
+                            complaints={userSpecificTickets}
                             allComplaints={complaints}
                             channelFilter={channelFilter}
                             setChannelFilter={setChannelFilter}
@@ -435,7 +712,32 @@ function App() {
                             onAdjustTicket={setAdjustModalTicket}
                             onCompensateTicket={setCompensationModalTicket}
                             onDownloadSlip={setDownloadSlipTicket}
-                            customTitle={currentUser?.role === 'HR' ? 'Tickets Assigned to My Queue' : 'My Filed Complaints & Inquiries'}
+                            customTitle={
+                                isCustomer
+                                    ? 'My Registered Complaints & Inquiries'
+                                    : isStaff
+                                    ? 'Complaints Assigned to My Queue'
+                                    : 'My Handled Complaints'
+                            }
+                        />
+                    )}
+
+                    {activeTab === 'admin' && (
+                        <UserManagementView
+                            users={users}
+                            departments={departments}
+                            onRefreshUsers={loadData}
+                            showToast={showToast}
+                        />
+                    )}
+
+                    {activeTab === 'reports' && (
+                        <ManagementReportsView
+                            stats={stats}
+                            complaints={complaints}
+                            departments={departments}
+                            feedbacks={feedbacks}
+                            channels={channels}
                         />
                     )}
                 </main>
