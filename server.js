@@ -1504,6 +1504,31 @@ const FEEDBACKS = [
 
 let ticketSequence = 51;
 
+// Initialize and ensure consistent compensation and claim fields on all complaints
+COMPLAINTS.forEach(c => {
+  if (!c.claimedAmount) {
+    const match = (c.description || '').match(/(?:₹|Rs\.?|INR)\s*([\d,]+)/i);
+    if (match && match[1]) {
+      c.claimedAmount = `₹${match[1]}`;
+    } else if (c.resolvedAmount && c.resolvedAmount.includes('₹')) {
+      const match2 = c.resolvedAmount.match(/₹[\d,]+/);
+      if (match2) c.claimedAmount = match2[0];
+    }
+  }
+  if (!c.originalClaimedAmount) {
+    c.originalClaimedAmount = c.claimedAmount || null;
+  }
+  if (!c.hrApprovedAmount) {
+    c.hrApprovedAmount = c.resolvedAmount || c.claimedAmount || null;
+  }
+  if (c.isAmountAdjusted === undefined) {
+    c.isAmountAdjusted = false;
+  }
+  if (c.amountAdjustmentReason === undefined) {
+    c.amountAdjustmentReason = null;
+  }
+});
+
 // API Routes
 
 // 1. Dashboard Statistics
@@ -1523,7 +1548,13 @@ app.get("/api/dashboard/statistics", (req, res) => {
   const csat = FEEDBACKS.length > 0 ? +(totalRating / FEEDBACKS.length).toFixed(1) : 4.9;
 
   // Calculate total estimated monetary resolution in INR
-  const totalResolvedValueINR = "₹12,48,500";
+  let numericSum = 1248500;
+  COMPLAINTS.forEach(c => {
+    if (c.compensationPayment && c.compensationPayment.numericAmount) {
+      numericSum += c.compensationPayment.numericAmount;
+    }
+  });
+  const totalResolvedValueINR = `₹${numericSum.toLocaleString('en-IN')}`;
 
   res.json({
     totalComplaints: total,
@@ -1591,7 +1622,7 @@ app.get("/api/complaints/:id", (req, res) => {
 
 // 4. Create New Complaint (Employee or HR)
 app.post("/api/complaints", (req, res) => {
-  const { employeeId, customerName, customerEmail, customerPhone, subject, description, category, priority, departmentId } = req.body;
+  const { employeeId, customerName, customerEmail, customerPhone, subject, description, category, priority, departmentId, claimedAmount, monetaryValue } = req.body;
 
   const userObj = USERS.find(u => u.employeeId === employeeId) || USERS[5];
   const finalCategory = category || "PAYROLL";
@@ -1602,6 +1633,14 @@ app.post("/api/complaints", (req, res) => {
   const now = new Date();
   const ticketNumber = `NEX-${now.getFullYear()}-${String(ticketSequence++).padStart(6, "0")}`;
   const hours = finalPriority === "CRITICAL" ? 4 : finalPriority === "HIGH" ? 24 : finalPriority === "MEDIUM" ? 48 : 72;
+
+  const rawClaimed = claimedAmount || monetaryValue;
+  const claimedFormatted = rawClaimed 
+    ? (String(rawClaimed).startsWith('₹') ? String(rawClaimed) : `₹${Number(String(rawClaimed).replace(/[^0-9.]/g, '')).toLocaleString('en-IN')}`) 
+    : (() => {
+        const match = (description || '').match(/(?:₹|Rs\.?|INR)\s*([\d,]+)/i);
+        return match && match[1] ? `₹${match[1]}` : null;
+      })();
 
   const newTicket = {
     id: Date.now(),
@@ -1622,7 +1661,12 @@ app.post("/api/complaints", (req, res) => {
     actionTakenBy: "Pending HR Initial Review",
     actionTimestamp: null,
     actionNotes: null,
-    resolvedAmount: "In Assessment",
+    claimedAmount: claimedFormatted,
+    originalClaimedAmount: claimedFormatted,
+    hrApprovedAmount: claimedFormatted,
+    isAmountAdjusted: false,
+    amountAdjustmentReason: null,
+    resolvedAmount: claimedFormatted || "In Assessment",
     resolutionSummary: null,
     createdAt: now.toISOString().replace("T", " ").substring(0, 16),
     slaRemainingMinutes: hours * 60,
@@ -1637,7 +1681,7 @@ app.post("/api/complaints", (req, res) => {
     ticketNumber,
     action: "CREATED",
     performedBy: `${newTicket.customerName} (${newTicket.employeeId})`,
-    details: `Grievance registered under ${deptObj.name}`,
+    details: `Grievance registered under ${deptObj.name}${claimedFormatted ? ` with Claimed Amount: ${claimedFormatted}` : ''}`,
     timestamp: newTicket.createdAt
   });
 
@@ -1658,7 +1702,7 @@ app.post("/api/complaints/:id/hr-action", (req, res) => {
   const complaint = COMPLAINTS.find(c => c.id.toString() === req.params.id || c.ticketNumber === req.params.id);
   if (!complaint) return res.status(404).json({ error: "Complaint not found" });
 
-  const { hrName, hrEmployeeId, actionType, actionNotes, status, resolvedAmount, resolutionSummary } = req.body;
+  const { hrName, hrEmployeeId, actionType, actionNotes, status, resolvedAmount, resolutionSummary, hrApprovedAmount, amountAdjustmentReason, isAmountAdjusted } = req.body;
   const now = new Date().toISOString().replace("T", " ").substring(0, 16);
 
   complaint.actionTakenBy = hrName ? `${hrName} (${hrEmployeeId || 'HR Officer'})` : "HR Officer";
@@ -1668,12 +1712,155 @@ app.post("/api/complaints/:id/hr-action", (req, res) => {
   if (resolvedAmount) complaint.resolvedAmount = resolvedAmount;
   if (resolutionSummary) complaint.resolutionSummary = resolutionSummary;
 
+  if (isAmountAdjusted || hrApprovedAmount) {
+    complaint.isAmountAdjusted = true;
+    complaint.hrApprovedAmount = hrApprovedAmount || resolvedAmount;
+    if (amountAdjustmentReason) complaint.amountAdjustmentReason = amountAdjustmentReason;
+    complaint.amountAdjustedBy = complaint.actionTakenBy;
+    complaint.amountAdjustedAt = now;
+  }
+
   AUDIT_LOGS.push({
     id: AUDIT_LOGS.length + 1,
     ticketNumber: complaint.ticketNumber,
     action: actionType || "HR_ACTION_RECORDED",
     performedBy: complaint.actionTakenBy,
-    details: `${actionNotes || 'Action taken by HR'}. Resolution: ${resolvedAmount || 'Pending'}`,
+    details: `${actionNotes || 'Action taken by HR'}. Resolution: ${resolvedAmount || complaint.resolvedAmount || 'Pending'}`,
+    timestamp: now
+  });
+
+  res.json(complaint);
+});
+
+// 5b. HR Adjusts / Modifies Compensation Amount (Direct HR Override)
+app.post("/api/complaints/:id/adjust-amount", (req, res) => {
+  const complaint = COMPLAINTS.find(c => c.id.toString() === req.params.id || c.ticketNumber === req.params.id);
+  if (!complaint) return res.status(404).json({ error: "Complaint not found" });
+
+  const newAmount = req.body.newAmount !== undefined ? req.body.newAmount : (req.body.approvedAmount !== undefined ? req.body.approvedAmount : req.body.amount);
+  const adjustmentReason = req.body.adjustmentReason || req.body.reason;
+  const { hrName, hrEmployeeId } = req.body;
+  if (newAmount === undefined || newAmount === null || newAmount === '') {
+    return res.status(400).json({ error: "New adjusted compensation amount is required" });
+  }
+
+  const now = new Date().toISOString().replace("T", " ").substring(0, 16);
+  const rawNum = typeof newAmount === 'number' ? newAmount : parseFloat(String(newAmount).replace(/[^0-9.]/g, '')) || 0;
+  const formattedAmount = String(newAmount).startsWith('₹') ? String(newAmount) : `₹${rawNum.toLocaleString('en-IN')}`;
+
+  const previousAmount = complaint.hrApprovedAmount || complaint.claimedAmount || complaint.resolvedAmount || "₹0";
+  if (!complaint.originalClaimedAmount) {
+    complaint.originalClaimedAmount = complaint.claimedAmount || previousAmount;
+  }
+
+  complaint.hrApprovedAmount = formattedAmount;
+  complaint.resolvedAmount = formattedAmount;
+  complaint.isAmountAdjusted = true;
+  complaint.amountAdjustmentReason = adjustmentReason || "Adjusted by HR officer per verified corporate policy limits and invoice audit.";
+  complaint.amountAdjustedBy = hrName ? `${hrName} (${hrEmployeeId || 'HR Officer'})` : "HR Officer";
+  complaint.amountAdjustedAt = now;
+
+  AUDIT_LOGS.push({
+    id: AUDIT_LOGS.length + 1,
+    ticketNumber: complaint.ticketNumber,
+    action: "COMPENSATION_AMOUNT_ADJUSTED_BY_HR",
+    performedBy: complaint.amountAdjustedBy,
+    details: `Compensation amount changed from ${previousAmount} to ${formattedAmount}. Audit Note: ${complaint.amountAdjustmentReason}`,
+    timestamp: now
+  });
+
+  MESSAGES.push({
+    id: MESSAGES.length + 1,
+    complaintId: complaint.id,
+    senderName: hrName || "HR Audit & Governance",
+    senderEmail: "hr.audit@nexusres.com",
+    isInternal: false,
+    message: `[OFFICIAL HR COMPENSATION REVISION] Compensation figure has been adjusted by HR to ${formattedAmount} (Employee Requested: ${complaint.originalClaimedAmount || previousAmount}). Audit Justification: ${complaint.amountAdjustmentReason}`,
+    timestamp: now
+  });
+
+  res.json(complaint);
+});
+
+// 5c. HR Compensates Money Through Website & Enables RESOLVED
+app.post("/api/complaints/:id/compensate", (req, res) => {
+  const complaint = COMPLAINTS.find(c => c.id.toString() === req.params.id || c.ticketNumber === req.params.id);
+  if (!complaint) return res.status(404).json({ error: "Complaint not found" });
+
+  const {
+    amount,
+    paymentMethod = "Corporate Instant IMPS / NEFT Gateway",
+    beneficiaryAccount,
+    settlementNotes,
+    hrName,
+    hrEmployeeId,
+    transactionId,
+    isAmountAdjusted,
+    originalClaimedAmount,
+    adjustmentReason
+  } = req.body;
+
+  if (!amount) {
+    return res.status(400).json({ error: "Compensation amount is required" });
+  }
+
+  const now = new Date().toISOString().replace("T", " ").substring(0, 16);
+  const txRef = transactionId || `TXN-NEX-${Date.now().toString().slice(-6)}-${Math.floor(1000 + Math.random() * 9000)}`;
+  
+  const rawNum = typeof amount === 'number' ? amount : parseFloat(String(amount).replace(/[^0-9.]/g, '')) || 0;
+  const formattedAmount = String(amount).startsWith('₹') ? String(amount) : `₹${rawNum.toLocaleString('en-IN')}`;
+
+  const wasAdjusted = isAmountAdjusted || (originalClaimedAmount && originalClaimedAmount !== formattedAmount);
+  if (wasAdjusted) {
+    complaint.isAmountAdjusted = true;
+    complaint.originalClaimedAmount = originalClaimedAmount || complaint.originalClaimedAmount || complaint.claimedAmount;
+    complaint.amountAdjustmentReason = adjustmentReason || complaint.amountAdjustmentReason || "Sanctioned amount modified by HR per policy limits.";
+    complaint.amountAdjustedBy = hrName ? `${hrName} (${hrEmployeeId || 'HR Officer'})` : "HR Officer";
+    complaint.amountAdjustedAt = now;
+  }
+
+  // Automatically enable RESOLVED status
+  complaint.status = "RESOLVED";
+  complaint.resolvedAmount = formattedAmount;
+  complaint.hrApprovedAmount = formattedAmount;
+  complaint.resolutionSummary = settlementNotes || `Official monetary compensation of ${formattedAmount} settled and disbursed directly via website corporate transfer (Ref: ${txRef}). Grievance officially resolved.`;
+  complaint.actionTakenBy = hrName ? `${hrName} (${hrEmployeeId || 'HR Officer'})` : "HR Officer";
+  complaint.actionTimestamp = now;
+  complaint.actionNotes = `Assignment settlement completed. Direct compensation of ${formattedAmount} transferred through website to ${complaint.customerName} (${beneficiaryAccount || 'Salary A/c on file'}). UTR: ${txRef}.${wasAdjusted ? ` [HR Adjustment: ${complaint.amountAdjustmentReason}]` : ''}`;
+
+  complaint.compensationPayment = {
+    paid: true,
+    amount: formattedAmount,
+    numericAmount: rawNum,
+    transactionId: txRef,
+    paymentMethod,
+    beneficiaryName: complaint.customerName,
+    beneficiaryEmployeeId: complaint.employeeId,
+    beneficiaryAccount: beneficiaryAccount || `HDFC Corporate Salary A/C **${Math.floor(1000 + Math.random() * 9000)} (IFSC: HDFC0001242)`,
+    paidAt: now,
+    paidBy: complaint.actionTakenBy,
+    settlementNotes: settlementNotes || "Assignment settlement processed through website portal",
+    isAmountAdjusted: !!complaint.isAmountAdjusted,
+    originalClaimedAmount: complaint.originalClaimedAmount || complaint.claimedAmount || formattedAmount,
+    amountAdjustmentReason: complaint.amountAdjustmentReason || null
+  };
+
+  AUDIT_LOGS.push({
+    id: AUDIT_LOGS.length + 1,
+    ticketNumber: complaint.ticketNumber,
+    action: "COMPENSATION_PAID_AND_RESOLVED",
+    performedBy: complaint.actionTakenBy,
+    details: `Settlement compensation of ${formattedAmount}${wasAdjusted ? ` (Adjusted by HR from ${complaint.originalClaimedAmount}: ${complaint.amountAdjustmentReason})` : ''} disbursed via website (${paymentMethod}, UTR: ${txRef}). Ticket enabled as RESOLVED.`,
+    timestamp: now
+  });
+
+  MESSAGES.push({
+    id: MESSAGES.length + 1,
+    complaintId: complaint.id,
+    senderName: hrName || "HR Disbursement Authority",
+    senderEmail: "disbursements@nexusres.com",
+    isInternal: false,
+    message: `[OFFICIAL SETTLEMENT CONFIRMATION] Monetary compensation of ${formattedAmount}${wasAdjusted ? ` (Audited & Adjusted by HR: ${complaint.amountAdjustmentReason})` : ''} has been disbursed through the website to employee ${complaint.customerName} (${complaint.employeeId}). Payment Mode: ${paymentMethod} | Reference UTR: ${txRef}. The grievance has been marked as RESOLVED.`,
     timestamp: now
   });
 
