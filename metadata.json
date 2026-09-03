@@ -1,6 +1,6 @@
 {
   "name": "Nexus Resolution",
-  "description": "Enterprise employee complaint and grievance resolution management platform with HR action tracker, ticket downloads, and SLA monitoring.",
+  "description": "Centralized omnichannel customer complaint resolution management platform with multi-channel registration, ticket assignment, SLA monitoring, escalation workflows, and customer feedback.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
