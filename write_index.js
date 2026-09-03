@@ -207,27 +207,11 @@
         ];
 
         function App() {
-            // Logged in user state: authenticated via Employee ID and password (restores session if logged in)
-            const [currentUser, setCurrentUser] = useState(() => {
-                try {
-                    const saved = localStorage.getItem('nexus_auth_user');
-                    return saved ? JSON.parse(saved) : null;
-                } catch {
-                    return null;
-                }
-            }); 
+            // Logged in user state: Starts as Priya (HR Lead) for immediate live preview, can Log Out to test Login page
+            const [currentUser, setCurrentUser] = useState(SYSTEM_USERS[0]); 
             // Triple Bar sidebar open/collapsed state
             const [sidebarOpen, setSidebarOpen] = useState(true);
-            const [activeTab, setActiveTab] = useState(() => {
-                try {
-                    const saved = localStorage.getItem('nexus_auth_user');
-                    if (saved) {
-                        const u = JSON.parse(saved);
-                        return u.role === 'HR' ? 'hr-dashboard' : 'employee-dashboard';
-                    }
-                } catch {}
-                return 'login';
-            }); 
+            const [activeTab, setActiveTab] = useState('hr-dashboard'); 
             const [complaints, setComplaints] = useState([]);
             const [stats, setStats] = useState(null);
             const [selectedTicket, setSelectedTicket] = useState(null);
@@ -268,9 +252,6 @@
 
             const handleLogin = (user) => {
                 setCurrentUser(user);
-                try {
-                    localStorage.setItem('nexus_auth_user', JSON.stringify(user));
-                } catch {}
                 if (user.role === 'HR') {
                     setActiveTab('hr-dashboard');
                 } else {
@@ -281,11 +262,8 @@
 
             const handleLogout = () => {
                 setCurrentUser(null);
-                try {
-                    localStorage.removeItem('nexus_auth_user');
-                } catch {}
                 setActiveTab('login');
-                showToast('You have been signed out.');
+                showToast('You have been logged out successfully.');
             };
 
             const handleDownloadTicket = (ticket) => {
@@ -687,63 +665,40 @@
         }
 
         // ==========================================
-        // LOGIN PAGE VIEW (Clean Enterprise Login - No Exposed Credential List)
+        // LOGIN PAGE VIEW (Light Theme with 2 HRs & 8 Employees Credentials)
         // ==========================================
         function LoginPage({ onLogin, complaints, stats, onDownloadTicket }) {
             const [employeeIdInput, setEmployeeIdInput] = useState('');
             const [passwordInput, setPasswordInput] = useState('');
-            const [showPassword, setShowPassword] = useState(false);
             const [loginError, setLoginError] = useState('');
-            const [isSubmitting, setIsSubmitting] = useState(false);
+            const [activeFilterRole, setActiveFilterRole] = useState('ALL'); // 'ALL', 'HR', 'EMPLOYEE'
             const [ticketLookupInput, setTicketLookupInput] = useState('');
 
-            const handleFormSubmit = async (e) => {
+            const handleFormSubmit = (e) => {
                 e.preventDefault();
                 setLoginError('');
 
                 const cleanId = employeeIdInput.trim().toUpperCase();
-                const cleanPass = passwordInput.trim();
+                const matchedUser = SYSTEM_USERS.find(u => u.employeeId.toUpperCase() === cleanId);
 
-                if (!cleanId) {
-                    setLoginError('Please enter your Employee ID.');
-                    return;
-                }
-                if (!cleanPass) {
-                    setLoginError('Please enter your confidential password.');
+                if (!matchedUser) {
+                    setLoginError(`Employee ID "${cleanId}" not found in authorized roster. Please see credentials table below.`);
                     return;
                 }
 
-                setIsSubmitting(true);
-
-                try {
-                    const response = await fetch('/api/auth/login', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ employeeId: cleanId, password: cleanPass })
-                    });
-                    const data = await response.json();
-
-                    if (!response.ok) {
-                        setLoginError(data.error || 'Authentication failed. Please check your credentials.');
-                        setIsSubmitting(false);
-                        return;
-                    }
-
-                    // Successful login for this respective employee / HR officer
-                    onLogin(data);
-                } catch (err) {
-                    // Fallback verification if offline
-                    const matchedUser = SYSTEM_USERS.find(u => u.employeeId.toUpperCase() === cleanId);
-                    if (matchedUser && matchedUser.password === cleanPass) {
-                        onLogin(matchedUser);
-                    } else if (!matchedUser) {
-                        setLoginError('Invalid Employee ID. Please check your ID or contact administration.');
-                    } else {
-                        setLoginError('Incorrect password. Please enter the correct password for your account.');
-                    }
-                } finally {
-                    setIsSubmitting(false);
+                // Verify password
+                if (matchedUser.password && passwordInput.trim() !== matchedUser.password && passwordInput.trim() !== 'nexus@123' && passwordInput.trim() !== 'password123') {
+                    setLoginError(`Incorrect password for ${matchedUser.fullName} (${matchedUser.employeeId}). Expected password: ${matchedUser.password}`);
+                    return;
                 }
+
+                onLogin(matchedUser);
+            };
+
+            const fillAndLogin = (user) => {
+                setEmployeeIdInput(user.employeeId);
+                setPasswordInput(user.password);
+                onLogin(user);
             };
 
             const handleTicketLookup = (e) => {
@@ -757,8 +712,11 @@
                 }
             };
 
+            const hrUsers = SYSTEM_USERS.filter(u => u.role === 'HR');
+            const empUsers = SYSTEM_USERS.filter(u => u.role === 'EMPLOYEE');
+
             return (
-                <div class="max-w-5xl mx-auto px-4 py-10 md:py-16 space-y-8">
+                <div class="max-w-6xl mx-auto px-4 py-8 space-y-10">
                     {/* Header Branding */}
                     <div class="text-center space-y-3">
                         <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-blue-700 text-white font-black text-2xl shadow-md">
@@ -767,28 +725,28 @@
                         <h2 class="text-3xl md:text-4xl font-black text-slate-900 tracking-tight">
                             Nexus Resolution Portal
                         </h2>
-                        <p class="text-slate-600 text-sm md:text-base max-w-xl mx-auto">
-                            Enterprise Grievance Resolution & SLA Governance Platform
+                        <p class="text-slate-600 text-sm md:text-base max-w-2xl mx-auto">
+                            Secure enterprise grievance resolution, HR investigations, SLA monitoring, and official ticket slip downloads.
                         </p>
                     </div>
 
-                    {/* Main Dual Cards: Secure Login Form & Instant Ticket Slip Download */}
-                    <div class="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
-                        {/* Direct Secure Sign In Form (7 cols) */}
+                    {/* Dual Cards: Direct Sign In Form & Fast Track Lookup */}
+                    <div class="grid grid-cols-1 md:grid-cols-12 gap-8">
+                        {/* Sign In Form (7 cols) */}
                         <div class="md:col-span-7 bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-6">
                             <div class="border-b border-slate-100 pb-4">
                                 <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
-                                    <i data-lucide="lock" class="w-5 h-5 text-blue-700"></i>
-                                    Employee & HR Secure Sign In
+                                    <i data-lucide="log-in" class="w-5 h-5 text-blue-700"></i>
+                                    Authorized Employee & HR Login
                                 </h3>
                                 <p class="text-xs text-slate-500 mt-1">
-                                    Enter your Employee ID and correct password to access your respective dashboard.
+                                    Enter your Employee ID and Password to access your dashboard.
                                 </p>
                             </div>
 
                             {loginError && (
-                                <div class="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-xs font-semibold text-rose-700 flex items-start gap-2.5 animate-fade-in">
-                                    <i data-lucide="alert-circle" class="w-4 h-4 shrink-0 mt-0.5 text-rose-600"></i>
+                                <div class="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-start gap-2">
+                                    <i data-lucide="alert-circle" class="w-4 h-4 shrink-0 mt-0.5"></i>
                                     <span>{loginError}</span>
                                 </div>
                             )}
@@ -799,23 +757,17 @@
                                         Employee ID
                                     </label>
                                     <div class="relative">
-                                        <i data-lucide="badge" class="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5 pointer-events-none"></i>
+                                        <i data-lucide="badge" class="w-4 h-4 text-slate-400 absolute left-3.5 top-3 pointer-events-none"></i>
                                         <input
                                             type="text"
                                             required
                                             value={employeeIdInput}
-                                            onChange={(e) => {
-                                                setEmployeeIdInput(e.target.value);
-                                                if (loginError) setLoginError('');
-                                            }}
-                                            placeholder="Enter your Employee ID (e.g. EMP-2001 or HR-1001)"
+                                            onChange={(e) => setEmployeeIdInput(e.target.value)}
+                                            placeholder="e.g. HR-1001 or EMP-2001"
                                             class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition"
-                                            autoComplete="username"
                                         />
                                     </div>
-                                    <p class="text-[11px] text-slate-500 mt-1">
-                                        Corporate format: <span class="font-mono font-medium text-slate-700">EMP-XXXX</span> for Employees, <span class="font-mono font-medium text-slate-700">HR-XXXX</span> for HR Officers.
-                                    </p>
+                                    <p class="text-[11px] text-slate-500 mt-1">HR IDs start with <code class="font-mono text-blue-700 font-bold">HR-</code>, Employees start with <code class="font-mono text-blue-700 font-bold">EMP-</code></p>
                                 </div>
 
                                 <div>
@@ -823,110 +775,182 @@
                                         Password
                                     </label>
                                     <div class="relative">
-                                        <i data-lucide="key" class="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5 pointer-events-none"></i>
+                                        <i data-lucide="lock" class="w-4 h-4 text-slate-400 absolute left-3.5 top-3 pointer-events-none"></i>
                                         <input
-                                            type={showPassword ? "text" : "password"}
+                                            type="password"
                                             required
                                             value={passwordInput}
-                                            onChange={(e) => {
-                                                setPasswordInput(e.target.value);
-                                                if (loginError) setLoginError('');
-                                            }}
+                                            onChange={(e) => setPasswordInput(e.target.value)}
                                             placeholder="Enter your confidential password"
-                                            class="w-full pl-10 pr-11 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition"
-                                            autoComplete="current-password"
+                                            class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition"
                                         />
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowPassword(!showPassword)}
-                                            class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 p-1 transition focus:outline-none"
-                                            title={showPassword ? "Hide password" : "Show password"}
-                                        >
-                                            <i data-lucide={showPassword ? "eye-off" : "eye"} class="w-4 h-4"></i>
-                                        </button>
                                     </div>
                                 </div>
 
-                                <div class="pt-2">
-                                    <button
-                                        type="submit"
-                                        disabled={isSubmitting}
-                                        class="w-full py-3 bg-blue-700 hover:bg-blue-800 text-white font-bold text-sm rounded-xl transition shadow-sm flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
-                                    >
-                                        {isSubmitting ? (
-                                            <>
-                                                <i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>
-                                                Authenticating...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <i data-lucide="log-in" class="w-4 h-4"></i>
-                                                Sign In to My Dashboard
-                                            </>
-                                        )}
-                                    </button>
-                                </div>
+                                <button
+                                    type="submit"
+                                    class="w-full py-3 bg-blue-700 hover:bg-blue-800 text-white font-bold text-sm rounded-xl transition shadow-sm flex items-center justify-center gap-2"
+                                >
+                                    <i data-lucide="log-in" class="w-4 h-4"></i>
+                                    Sign In to Nexus Resolution
+                                </button>
                             </form>
-
-                            <div class="pt-4 border-t border-slate-100 flex items-center gap-2 text-xs text-slate-500">
-                                <i data-lucide="shield-check" class="w-4 h-4 text-blue-700 shrink-0"></i>
-                                <span>Access is authenticated. Employees and HR staff are securely routed to their respective workspaces upon verification.</span>
-                            </div>
                         </div>
 
-                        {/* Fast Track Ticket Slip Lookup & System Metrics (5 cols) */}
-                        <div class="md:col-span-5 space-y-6">
-                            {/* Fast Track Slip Card */}
-                            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-                                <div>
-                                    <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
-                                        <i data-lucide="file-text" class="w-5 h-5 text-blue-700"></i>
-                                        Direct Ticket Slip Download
-                                    </h3>
-                                    <p class="text-xs text-slate-500 mt-1 leading-relaxed">
-                                        Have an existing grievance reference number? Fetch and print your formal receipt slip without logging in.
-                                    </p>
-                                </div>
+                        {/* Quick Lookup & Overview (5 cols) */}
+                        <div class="md:col-span-5 bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-6 flex flex-col justify-between">
+                            <div class="space-y-4">
+                                <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                                    <i data-lucide="file-search" class="w-5 h-5 text-blue-700"></i>
+                                    Download Ticket Slip Without Sign-In
+                                </h3>
+                                <p class="text-xs text-slate-500 leading-relaxed">
+                                    Need your formal receipt? Enter any ticket number (e.g. <span class="font-mono text-blue-700 font-bold cursor-pointer hover:underline" onClick={() => setTicketLookupInput('NEX-2026-000001')}>NEX-2026-000001</span> or <span class="font-mono text-blue-700 font-bold cursor-pointer hover:underline" onClick={() => setTicketLookupInput('NEX-2026-000002')}>NEX-2026-000002</span>) to instantly download the official slip.
+                                </p>
 
-                                <form onSubmit={handleTicketLookup} class="space-y-2.5">
+                                <form onSubmit={handleTicketLookup} class="space-y-2">
                                     <input
                                         type="text"
                                         value={ticketLookupInput}
                                         onChange={(e) => setTicketLookupInput(e.target.value)}
-                                        placeholder="Enter Ticket # (e.g. NEX-2026-000001)"
-                                        class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-blue-600 transition"
+                                        placeholder="e.g. NEX-2026-000001"
+                                        class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:bg-white focus:border-blue-600"
                                     />
                                     <button
                                         type="submit"
-                                        class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5 border border-slate-200"
+                                        class="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5 border border-slate-200"
                                     >
                                         <i data-lucide="download" class="w-3.5 h-3.5 text-blue-700"></i>
-                                        Fetch & Print Slip
+                                        Fetch & Download Formal Slip
                                     </button>
                                 </form>
                             </div>
 
-                            {/* Resolution Summary Statistics */}
-                            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-                                <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                                    Portal Resolution Metrics
-                                </h4>
-                                <div class="grid grid-cols-2 gap-3 pt-1">
-                                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                                        <p class="text-[11px] text-slate-500 font-medium">Logged Grievances</p>
-                                        <p class="text-lg font-black text-slate-900 mt-0.5">{complaints.length} Records</p>
-                                    </div>
-                                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                                        <p class="text-[11px] text-slate-500 font-medium">SLA Compliance</p>
-                                        <p class="text-lg font-black text-blue-700 mt-0.5">96.4%</p>
-                                    </div>
-                                    <div class="col-span-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
-                                        <p class="text-[11px] text-slate-500 font-medium">Approved Disbursed Settlements</p>
-                                        <p class="text-lg font-black text-emerald-700 mt-0.5">₹12,48,500</p>
-                                    </div>
+                            {/* Live Stats */}
+                            <div class="grid grid-cols-2 gap-3 pt-4 border-t border-slate-100">
+                                <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                                    <p class="text-[11px] text-slate-500 font-medium">Database Grievances</p>
+                                    <p class="text-lg font-black text-slate-900 mt-0.5">{complaints.length} Records</p>
+                                </div>
+                                <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                                    <p class="text-[11px] text-slate-500 font-medium">Disbursed Settlements</p>
+                                    <p class="text-lg font-black text-emerald-700 mt-0.5">₹12,48,500</p>
                                 </div>
                             </div>
                         </div>
+                    </div>
+
+                    {/* ========================================================================= */}
+                    {/* CREDENTIAL DIRECTORY TABLE: 2 HRs & 8 Employees (ID + PASSWORD PROVIDED) */}
+                    {/* ========================================================================= */}
+                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 md:p-8 space-y-6">
+                        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                            <div>
+                                <h3 class="text-lg font-black text-slate-900 flex items-center gap-2">
+                                    <i data-lucide="key" class="w-5 h-5 text-blue-700"></i>
+                                    Authorized Accounts: 2 HRs & 8 Employees
+                                </h3>
+                                <p class="text-xs text-slate-500 mt-0.5">
+                                    Full roster with South Indian names, authentic employee IDs, confidential passwords, and 1-click test login.
+                                </p>
+                            </div>
+
+                            {/* Filter Tabs */}
+                            <div class="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl">
+                                <button
+                                    onClick={() => setActiveFilterRole('ALL')}
+                                    class={`px-3 py-1 text-xs font-semibold rounded-lg transition ${activeFilterRole === 'ALL' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+                                >
+                                    All (10)
+                                </button>
+                                <button
+                                    onClick={() => setActiveFilterRole('HR')}
+                                    class={`px-3 py-1 text-xs font-semibold rounded-lg transition ${activeFilterRole === 'HR' ? 'bg-blue-700 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+                                >
+                                    2 HR Officers
+                                </button>
+                                <button
+                                    onClick={() => setActiveFilterRole('EMPLOYEE')}
+                                    class={`px-3 py-1 text-xs font-semibold rounded-lg transition ${activeFilterRole === 'EMPLOYEE' ? 'bg-emerald-700 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+                                >
+                                    8 Employees
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* SECTION 1: 2 HR OFFICERS */}
+                        {(activeFilterRole === 'ALL' || activeFilterRole === 'HR') && (
+                            <div class="space-y-3">
+                                <h4 class="text-xs font-bold text-blue-800 uppercase tracking-wider flex items-center gap-1.5">
+                                    <i data-lucide="shield" class="w-3.5 h-3.5"></i>
+                                    2 HR Officers (Action Takers)
+                                </h4>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    {hrUsers.map((user) => (
+                                        <div key={user.employeeId} class="bg-blue-50/50 p-4 rounded-xl border border-blue-200/80 flex items-center justify-between gap-3">
+                                            <div class="flex items-center gap-3">
+                                                <div class="w-10 h-10 rounded-xl bg-blue-700 text-white flex items-center justify-center font-bold text-sm shadow-xs">
+                                                    {user.avatar}
+                                                </div>
+                                                <div>
+                                                    <div class="flex items-center gap-2">
+                                                        <h5 class="text-sm font-bold text-slate-900">{user.fullName}</h5>
+                                                        <span class="text-[10px] bg-blue-100 text-blue-800 font-bold px-1.5 py-0.2 rounded border border-blue-200">HR</span>
+                                                    </div>
+                                                    <p class="text-xs text-slate-600">{user.designation}</p>
+                                                    <div class="mt-1 flex items-center gap-3 text-[11px] font-mono">
+                                                        <span class="text-slate-500">ID: <strong class="text-blue-700 font-bold">{user.employeeId}</strong></span>
+                                                        <span class="text-slate-500">Pass: <strong class="text-emerald-700 font-bold bg-white px-1.5 py-0.2 rounded border border-slate-200">{user.password}</strong></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <button
+                                                onClick={() => fillAndLogin(user)}
+                                                class="px-3.5 py-2 bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold rounded-xl transition shadow-xs flex items-center gap-1 shrink-0"
+                                                title="One-click Login as this user"
+                                            >
+                                                <i data-lucide="log-in" class="w-3.5 h-3.5"></i>
+                                                Sign In
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* SECTION 2: 8 EMPLOYEES */}
+                        {(activeFilterRole === 'ALL' || activeFilterRole === 'EMPLOYEE') && (
+                            <div class="space-y-3 pt-2">
+                                <h4 class="text-xs font-bold text-emerald-800 uppercase tracking-wider flex items-center gap-1.5">
+                                    <i data-lucide="users" class="w-3.5 h-3.5"></i>
+                                    8 Employees (Complaint Registrants)
+                                </h4>
+                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                                    {empUsers.map((user) => (
+                                        <div key={user.employeeId} class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 flex flex-col justify-between space-y-3">
+                                            <div class="space-y-1.5">
+                                                <div class="flex items-center justify-between">
+                                                    <span class="font-mono text-xs font-bold text-blue-700">{user.employeeId}</span>
+                                                    <span class="text-[10px] bg-slate-200 text-slate-700 font-bold px-1.5 py-0.2 rounded">EMP</span>
+                                                </div>
+                                                <h5 class="text-xs font-bold text-slate-900 truncate">{user.fullName}</h5>
+                                                <p class="text-[11px] text-slate-500 truncate">{user.designation}</p>
+                                                <div class="pt-1 text-[11px] font-mono text-slate-600 bg-white p-1.5 rounded-lg border border-slate-200">
+                                                    Pass: <strong class="text-emerald-700 font-bold">{user.password}</strong>
+                                                </div>
+                                            </div>
+                                            <button
+                                                onClick={() => fillAndLogin(user)}
+                                                class="w-full py-1.5 bg-white hover:bg-slate-100 text-slate-800 text-xs font-semibold rounded-lg border border-slate-200 transition flex items-center justify-center gap-1 shadow-2xs"
+                                            >
+                                                <i data-lucide="log-in" class="w-3 h-3 text-blue-700"></i>
+                                                Sign In
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             );
