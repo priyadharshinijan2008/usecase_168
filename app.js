@@ -48,6 +48,26 @@ function formatINR(val) {
 // ROOT APP COMPONENT
 // ==========================================
 function App() {
+    // Resolve modal and view components safely from window
+    const AssignTicketModal = window.AssignTicketModal;
+    const EscalateTicketModal = window.EscalateTicketModal;
+    const CustomerFeedbackModal = window.CustomerFeedbackModal;
+    const TakeActionModal = window.TakeActionModal;
+    const AdjustCompensationModal = window.AdjustCompensationModal;
+    const CompensationPaymentModal = window.CompensationPaymentModal;
+    const DownloadSlipModal = window.DownloadSlipModal;
+    const TicketDetailModal = window.TicketDetailModal;
+    const OmnichannelInboxView = window.OmnichannelInboxView;
+    const RegisterComplaintView = window.RegisterComplaintView;
+    const SLAMonitorView = window.SLAMonitorView;
+    const EscalationsView = window.EscalationsView;
+    const CustomerFeedbackView = window.CustomerFeedbackView;
+    const ChannelMatrixView = window.ChannelMatrixView;
+    const WorkflowBanner = window.WorkflowBanner;
+    const UserManagementView = window.UserManagementView;
+    const ManagementReportsView = window.ManagementReportsView;
+    const LoginView = window.LoginView;
+
     const [currentUser, setCurrentUser] = useState(() => {
         try {
             const saved = localStorage.getItem('nexus_auth_user');
@@ -1162,4 +1182,23 @@ function KPICard({ title, value, sub, icon, color }) {
 
 // Export App to window
 window.App = App;
-ReactDOM.render(<App />, document.getElementById('root'));
+
+function renderApp() {
+    const rootEl = document.getElementById('root');
+    if (!rootEl) return;
+    if (ReactDOM.createRoot) {
+        if (!window._reactRoot) {
+            window._reactRoot = ReactDOM.createRoot(rootEl);
+        }
+        window._reactRoot.render(<App />);
+    } else {
+        ReactDOM.render(<App />, rootEl);
+    }
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', renderApp);
+} else {
+    renderApp();
+}
+

@@ -1,5 +1,6 @@
 // Nexus Resolution - Primary Omnichannel View Modules
 const { useState: vState, useEffect: vEffect } = React;
+const { apiCall = window.apiCall, getChannel = window.getChannel, formatINR = window.formatINR, CHANNEL_META = window.CHANNEL_META } = window;
 
 // ==========================================
 // 1. OMNICHANNEL INBOX VIEW

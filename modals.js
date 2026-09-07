@@ -1,5 +1,6 @@
 // Nexus Resolution - Omnichannel Complaint Management Modals
 const { useState: mState, useEffect: mEffect } = React;
+const { apiCall = window.apiCall, getChannel = window.getChannel, formatINR = window.formatINR, CHANNEL_META = window.CHANNEL_META } = window;
 
 // ==========================================
 // 1. ASSIGN / RE-ROUTE TICKET MODAL
